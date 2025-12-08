@@ -1,0 +1,5 @@
+{
+  "name": "Anime Together Sync",
+  "description": "A real-time YouTube video synchronization and chat application using Firebase and React. Features room management, precise video sync, and modern UI.",
+  "requestFramePermissions": []
+}
