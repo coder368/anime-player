@@ -12,92 +12,50 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onSelect }) 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   if (!isOpen) return null;
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearch = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!query.trim()) return;
-
     setLoading(true);
+    setError('');
     try {
-      const res = await fetch(
-        `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=10&q=${encodeURIComponent(query)}&type=video&key=${YOUTUBE_API_KEY}`
-      );
-      const data = await res.json();
-      if (data.items) {
-        setResults(data.items);
-      }
+      const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=10&q=${encodeURIComponent(query)}&type=video&key=${YOUTUBE_API_KEY}`);
+      const data = await response.json();
+      if (!response.ok || data.error) throw new Error(data.error?.message || 'Search is unavailable right now.');
+      setResults(data.items || []);
     } catch (err) {
-      console.error("Search failed", err);
+      console.error('Search failed', err);
+      setError('Could not search videos. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-dark-surface w-full max-w-2xl rounded-2xl border border-primary/30 shadow-2xl flex flex-col max-h-[80vh]">
-        <div className="p-4 border-b border-gray-700 flex justify-between items-center">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <i className="fab fa-youtube text-red-500"></i> Search Video
-          </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
-            <i className="fas fa-times text-xl"></i>
-          </button>
+    <div className="search-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="search-dialog" role="dialog" aria-modal="true" aria-labelledby="search-title">
+        <header className="search-header"><h2 id="search-title" className="search-heading">Find a video</h2><button className="search-close" onClick={onClose} aria-label="Close search"><i className="fas fa-xmark" /></button></header>
+        <form onSubmit={handleSearch} className="search-form">
+          <input className="search-input" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search YouTube videos" autoFocus aria-label="Search YouTube videos" />
+          <button className="button button-primary search-submit" type="submit" disabled={loading || !query.trim()} aria-label="Search">{loading ? <i className="fas fa-spinner fa-spin" /> : <i className="fas fa-magnifying-glass" />}</button>
+        </form>
+        <div className="search-results">
+          {error && <p className="search-error" role="alert">{error}</p>}
+          {results.map((item) => {
+            const thumbnail = item.snippet.thumbnails.medium.url;
+            return <button key={item.id.videoId} className="search-result" onClick={() => onSelect({ id: item.id.videoId, title: item.snippet.title, thumbnail })}>
+              <img src={thumbnail} alt="" loading="lazy" />
+              <span className="result-copy"><span className="result-title">{item.snippet.title}</span><span className="result-channel">{item.snippet.channelTitle}</span></span>
+            </button>;
+          })}
+          {loading && <p className="search-hint">Searching videos…</p>}
+          {!loading && !error && results.length === 0 && <p className="search-hint">Search for a title, episode, or creator to add a video to this room.</p>}
+          {!loading && results.length > 0 && <p className="search-hint">Choose a result to share it with everyone in the room.</p>}
         </div>
-
-        <div className="p-4">
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search YouTube..."
-              className="flex-1 bg-dark border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:border-primary text-white"
-              autoFocus
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-6 py-3 bg-primary rounded-xl font-semibold text-white hover:bg-primary-light transition-colors disabled:opacity-50"
-            >
-              {loading ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-search"></i>}
-            </button>
-          </form>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 grid gap-3 custom-scrollbar">
-          {results.map((item) => (
-            <div
-              key={item.id.videoId}
-              onClick={() => onSelect({
-                id: item.id.videoId,
-                title: item.snippet.title,
-                thumbnail: item.snippet.thumbnails.medium.url
-              })}
-              className="flex gap-3 p-3 rounded-xl hover:bg-white/5 cursor-pointer border border-transparent hover:border-primary/30 transition-all group"
-            >
-              <img 
-                src={item.snippet.thumbnails.medium.url} 
-                alt={item.snippet.title} 
-                className="w-32 h-20 object-cover rounded-lg group-hover:scale-105 transition-transform"
-              />
-              <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-sm text-gray-100 line-clamp-2 mb-1 group-hover:text-primary-light transition-colors">
-                    {item.snippet.title}
-                </h4>
-                <p className="text-xs text-gray-500">{item.snippet.channelTitle}</p>
-              </div>
-            </div>
-          ))}
-          {results.length === 0 && !loading && (
-             <div className="text-center text-gray-600 py-10">
-                Start typing to search for videos...
-             </div>
-          )}
-        </div>
-      </div>
+      </section>
     </div>
   );
 };
