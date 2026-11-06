@@ -25,7 +25,8 @@ const Chat: React.FC<ChatProps> = ({ roomId, currentUser, currentVideoTitle }) =
   }, [roomId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    messagesEndRef.current?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'end' });
   }, [messages]);
 
   const handleSend = async (event?: React.FormEvent) => {
